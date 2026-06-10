@@ -177,7 +177,7 @@ py -3.10 extract_visual_events.py "movie.mp4" -o stills --top 40
 # 3. Stills -> slideshow (4 s per image)
 ffmpeg -framerate 1/4 -pattern_type glob -i "stills/frame_*.jpg" -c:v libx264 -r 30 -pix_fmt yuv420p stills_reel.mp4
 
-# 4. Compose a soundtrack as long as the longer video
+# 4. Compose a soundtrack as long as the longest video
 py -3.10 make_soundtrack.py compilation.mp4 stills_reel.mp4 --keywords disturbing horrifying creepy
 
 # 5a. Mix music UNDER the screams (35% volume)
