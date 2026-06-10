@@ -11,6 +11,8 @@ Four Python scripts that turn any local video file (MP4, MKV, AVI, MOV — anyth
 
 Together they form a pipeline: **mine the sounds → mine the visuals → score it → assemble it**. A movie goes in; a fully AI-curated, AI-scored highlight reel comes out.
 
+## Check out an example on Youtube -> https://youtu.be/Zs8ph586ZyA?si=OnuPcCVqtGtwaevz
+
 ---
 
 ## 1. Setup (Windows)
