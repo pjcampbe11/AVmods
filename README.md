@@ -302,11 +302,11 @@ All three are free, open, cached locally after first download, and never send yo
 
 ---
 
-## 9. OBSESSION (2026) — Fan Edit Project
+## 9. Obsession (2026) — Fan Edit Project
 
-## About the Film
+### About the Film
 
-*Obsession* is a supernatural psychological horror film written, directed, and edited by Curry Barker (a 2025 production that hit wide release in 2026, hence both years circulating). Bear (Michael Johnston), a shy music-store employee, can't work up the nerve to ask out his co-worker and childhood friend Nikki (Inde Navarrette). Instead of being honest, he buys a "One Wish Willow" — a kitschy 1960s antique toy from a crystal shop that grants one wish when you snap a branch — and wishes for Nikki to fall in love with him.
+**Obsession** is a supernatural psychological horror film written, directed, and edited by Curry Barker (a 2025 production that hit wide release in 2026, hence both years circulating). Bear (Michael Johnston), a shy music-store employee, can't work up the nerve to ask out his co-worker and childhood friend Nikki (Inde Navarrette). Instead of being honest, he buys a "One Wish Willow" — a kitschy 1960s antique toy from a crystal shop that grants one wish when you snap a branch — and wishes for Nikki to fall in love with him.
 
 The wish works, horrifically: Nikki becomes an unrecognizable, psychotic replica of herself, her devotion total and hollow, and the film plays out the consequences as a stalker-horror nightmare where Bear is both perpetrator and prey. Critics read it as a dark parable about entitlement and consent — getting the person without the personhood.
 
@@ -314,13 +314,13 @@ Barker, a 26-year-old YouTuber-turned-filmmaker, shot it in about 20 days on a ~
 
 **Sources:** [IMDb](https://www.imdb.com/title/tt37287335/) · [NBC News](https://www.nbcnews.com/pop-culture/pop-culture-news/obsession-curry-barker-box-office-hit-focus-features-rcna346824) · [IndieWire](https://www.indiewire.com/criticism/movies/obsession-review-curry-baker-1235149428/) · [RogerEbert.com](https://www.rogerebert.com/reviews/obsession-curry-barker-movie-review-2026)
 
-## Obsession ~ How It Was Made — AV-EVENT-MINER
+### Obsession ~ How It Was Made — AV-EVENT-MINER
 
 All video processing was done with **[AV-EVENT-MINER](https://github.com/pjcampbe11/AVmods-Local_Video-_Event_Mining_Soundtrack_Toolkit/tree/main)**: ML-based event mining for local video — four Python scripts that turn any local video file (MP4, MKV, AVI, MOV — anything ffmpeg reads) into new creative material: YAMNet audio-event detection, CLIP zero-shot frame retrieval, MusicGen soundtrack generation, and ffmpeg assembly. Runs **100% offline** on CPU (GPU auto-detected and used if present) — no uploads, no API keys, no cloud fees.
 
 ### The Soundtrack — ObsessionRift
 
-*A dark, bass-driven electronic track built to sit under horror edits. Generated with [ACE Studio](https://acestudio.ai).*
+**A dark, bass-driven electronic track built to sit under horror edits. Generated with [ACE Studio](https://acestudio.ai).**
 
 ObsessionRift runs at 150 BPM halftime — the classic dubstep/djent pocket — opening with a tense 20-second intro punctuated by two warning hits before locking into a relentless three-minute wall of low-end that doesn't let go until the final fade.
 
@@ -329,4 +329,3 @@ The sound is heavy in the most literal sense: over 80% of the track's energy liv
 **Specs:** stereo WAV · 44.1 kHz / 16-bit · 3:10 · mono-compatible image. Best experienced on headphones or a system with a subwoofer — phone speakers physically can't reproduce most of what's down there.
 
 ![ObsessionRift waveform and spectrogram](images/ObsessionRift_analysis.png)
-
