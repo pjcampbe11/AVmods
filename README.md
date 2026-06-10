@@ -1,6 +1,6 @@
-# AVmods — Local Video Event Mining & Soundtrack Toolkit
+# av-event-miner
 
-Four Python scripts that turn any local video file (MP4, MKV, AVI, MOV — anything ffmpeg reads) into new creative material, **100% locally**: no uploads, no API keys, no cloud fees. Everything runs on CPU (GPU auto-detected and used if present).
+ML-based event mining for local video — four Python scripts that turn any local video file (MP4, MKV, AVI, MOV — anything ffmpeg reads) into new creative material: YAMNet audio-event detection, CLIP zero-shot frame retrieval, MusicGen soundtrack generation, and ffmpeg assembly. Runs 100% offline on CPU (GPU auto-detected and used if present) — no uploads, no API keys, no cloud fees.
 
 | # | Script | Senses / Creates | Output |
 |---|---|---|---|
