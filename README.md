@@ -1,14 +1,15 @@
 # AVmods — Local Video Event Mining & Soundtrack Toolkit
 
-Three Python scripts that turn any local video file (MP4, MKV, AVI, MOV — anything ffmpeg reads) into new creative material, **100% locally**: no uploads, no API keys, no cloud fees. Everything runs on CPU (GPU auto-detected and used if present).
+Four Python scripts that turn any local video file (MP4, MKV, AVI, MOV — anything ffmpeg reads) into new creative material, **100% locally**: no uploads, no API keys, no cloud fees. Everything runs on CPU (GPU auto-detected and used if present).
 
 | # | Script | Senses / Creates | Output |
 |---|---|---|---|
 | 1 | `clip_audio_events.py` | **Hearing** — screams, crying, whispers, gunshots… 521 sound classes (YAMNet/AudioSet) | one compiled MP4 of matching clips + detection CSV |
 | 2 | `extract_visual_events.py` | **Sight** — any phrase you can type: "disturbing", "blood splatter", "foggy forest" (CLIP zero-shot) | high-res screen-filling JPG + PNG stills + score CSV |
 | 3 | `make_soundtrack.py` | **Composing** — AI music matched to your keywords' vibe (Meta MusicGen) | WAV music bed, exact duration of your longest video |
+| 4 | `stills_to_movie.py` | **Assembling** — stills → slideshow MP4, audio ripped from any media file and overlaid | finished MP4 (and/or standalone wav/mp3/m4a rips) |
 
-Together they form a pipeline: **mine the sounds → mine the visuals → score the result** — a movie goes in, a fully AI-curated, AI-scored highlight reel comes out.
+Together they form a pipeline: **mine the sounds → mine the visuals → score it → assemble it**. A movie goes in; a fully AI-curated, AI-scored highlight reel comes out.
 
 ---
 
@@ -22,7 +23,7 @@ winget install Gyan.FFmpeg          # recommended
 # or: choco install ffmpeg   /   scoop install ffmpeg
 ```
 
-Manual: grab the "full" build from <https://www.gyan.dev/ffmpeg/builds/>, extract, add the `bin` folder to PATH. Open a **new** PowerShell window and re-check. Any ffmpeg ≥ 4.x works; scripts 1 and 3 also use `ffprobe`, which ships in the same build.
+Manual: grab the "full" build from <https://www.gyan.dev/ffmpeg/builds/>, extract, add the `bin` folder to PATH. Open a **new** PowerShell window and re-check. Any ffmpeg ≥ 4.x works; scripts 1, 3, and 4 also use `ffprobe`/advanced filters, which ship in the same build.
 
 ### 1.2 Python
 
@@ -41,6 +42,8 @@ py -3.10 -m pip install torch torchvision open_clip_torch opencv-python pillow
 
 # Script 3 (soundtrack) — reuses torch from above
 py -3.10 -m pip install transformers scipy
+
+# Script 4 (stills -> movie) — nothing! Python stdlib + ffmpeg only.
 ```
 
 NVIDIA GPU? Install the CUDA build of PyTorch (<https://pytorch.org/get-started/locally/>) — scripts 2 and 3 auto-detect it and run many times faster.
@@ -59,7 +62,7 @@ pip install tensorflow tensorflow-hub soundfile torch torchvision open_clip_torc
 ffmpeg -version | Select-Object -First 1; py -3.10 --version; py -3.10 -c "import tensorflow, tensorflow_hub, soundfile; print('audio deps OK')"; py -3.10 -c "import torch, open_clip, cv2, PIL; print('visual deps OK')"; py -3.10 -c "import transformers, scipy; print('music deps OK')"
 ```
 
-Five lines printing = fully ready. (TensorFlow's import takes 10–30 s and prints oneDNN warnings — normal.)
+Five lines printing = fully ready (script 4 needs only the first two). TensorFlow's import takes 10–30 s and prints oneDNN warnings — normal.
 
 ### 1.5 First-run model downloads (then fully offline)
 
@@ -68,6 +71,8 @@ Five lines printing = fully ready. (TensorFlow's import takes 10–30 s and prin
 | YAMNet | script 1 | ~17 MB | `%TEMP%\tfhub_modules` |
 | CLIP ViT-B-32 | script 2 | ~340 MB | `%USERPROFILE%\.cache` |
 | MusicGen small | script 3 | ~2 GB | `%USERPROFILE%\.cache\huggingface` |
+
+Script 4 uses no AI models.
 
 ---
 
@@ -157,46 +162,76 @@ py -3.10 make_soundtrack.py compilation.mp4 stills_reel.mp4 --keywords disturbin
 
 ### Creative uses
 
-- **Score your own supercut** — the intended pipeline (see section 5).
+- **Score your own supercut** — the intended pipeline (see section 6).
 - **Re-score a scene** — feed any clip with `--prompt "upbeat 80s synthwave"` and watch a horror scene become a music video.
-- **Ambient sleep/focus beds** — `--prompt "calm ambient pads, slow, warm, no percussion" --gen-seconds 120` against any long video gives an exact-length bed.
+- **Ambient sleep/focus beds** — `--prompt "calm ambient pads, slow, warm, no percussion" --gen-seconds 120` gives an exact-length bed for any video.
 - **Trailer mockups** — `--prompt "epic trailer percussion, braams, rising tension"`.
 - **A/B takes** — same command, different `--seed`, pick the best take.
 
 ---
 
-## 5. The full pipeline — movie in, scored nightmare reel out
+## 5. `stills_to_movie.py` — slideshow assembler + audio overlay
+
+Takes a folder of JPG/PNG stills and builds a polished MP4 — then optionally rips the audio out of **any** media file (mp4, mkv, mp3, wav, m4a…) and lays it on top. Pure ffmpeg + Python stdlib: no pip packages, no AI models, runs in seconds. Slides sort by filename, so script 2's `frame_0001_…` naming keeps everything chronological automatically; JPG/PNG twins of the same still are deduped (PNG preferred, `--prefer jpg` to flip).
+
+```powershell
+py -3.10 stills_to_movie.py stills -o reel.mp4 --audio soundtrack.wav
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `stills` | — | folder of jpg/png images |
+| `--duration` | 4.0 | seconds per slide |
+| `--size` | 1920x1080 | output resolution |
+| `--fps` | 30 | output frame rate |
+| `--zoom` | off | gentle continuous Ken Burns zoom |
+| `--crossfade` | 0 | crossfade seconds between slides (e.g. `1.0`); not with `--zoom` |
+| `--prefer` | png | which twin to keep when a still exists as both jpg+png |
+| `--audio` | none | any media file to take audio from |
+| `--audio-start` | 0 | seek seconds into the audio source |
+| `--audio-volume` | 1.0 | gain on the overlaid audio |
+| `--audio-fade` | 2.0 | audio fade in/out seconds |
+| `--loop-audio` | off | loop audio if shorter than the video |
+| `--extract-only OUT` | — | just rip audio from `--audio` to wav/mp3/m4a/flac and exit |
+
+The video's length always rules: audio is trimmed, looped (`--loop-audio`), or silence-padded to match exactly.
+
+### Creative uses
+
+- **Finish the pipeline** — stills + AI soundtrack → final reel in one command (section 6).
+- **Haunted slideshow** — `--audio movie.mp4 --audio-start 3600` lays the movie's own audio from the 60-minute mark under its scariest frames.
+- **Standalone audio ripper** — `py -3.10 stills_to_movie.py --audio movie.mp4 --extract-only soundtrack_rip.mp3` is a one-stop "get me the audio" tool, no slideshow needed.
+- **Photo memorial / year-in-review** — any folder of photos + a song: `--duration 5 --crossfade 1.5 --audio song.mp3`.
+- **Wallpaper showreel** — 4K stills + `--zoom --size 3840x2160` = gallery-style ambient video.
+- **Podcast video-izer** — one title-card image + `--audio episode.mp3 --duration 3600` turns audio into an uploadable MP4.
+
+---
+
+## 6. The full pipeline — movie in, scored nightmare reel out
 
 ```powershell
 # 1. Mine the audio: every scream/cry/whisper becomes a clip compilation
 py -3.10 clip_audio_events.py "movie.mp4" -o compilation.mp4
 
-# 2. Mine the visuals: the most horrifying frames as 1080p stills
+# 2. Mine the visuals: the 40 most horrifying frames as 1080p stills
 py -3.10 extract_visual_events.py "movie.mp4" -o stills --top 40
 
-# 3. Stills -> slideshow (4 s per image)
-ffmpeg -framerate 1/4 -pattern_type glob -i "stills/frame_*.jpg" -c:v libx264 -r 30 -pix_fmt yuv420p stills_reel.mp4
+# 3. Stills -> silent slideshow (script 4; needed so step 4 can measure it)
+py -3.10 stills_to_movie.py stills -o stills_reel.mp4 --crossfade 1.0
 
-# 4. Compose a soundtrack as long as the longest video
+# 4. Compose a soundtrack as long as the longer of the two videos
 py -3.10 make_soundtrack.py compilation.mp4 stills_reel.mp4 --keywords disturbing horrifying creepy
 
-# 5a. Mix music UNDER the screams (35% volume)
-ffmpeg -i compilation.mp4 -i soundtrack.wav -filter_complex "[1:a]volume=0.35[m];[0:a][m]amix=inputs=2:duration=first:normalize=0" -c:v copy scored_compilation.mp4
+# 5. Rebuild the slideshow WITH the soundtrack baked in
+py -3.10 stills_to_movie.py stills -o scored_stills.mp4 --crossfade 1.0 --audio soundtrack.wav
 
-# 5b. Or set the silent stills reel TO the music
-ffmpeg -i stills_reel.mp4 -i soundtrack.wav -map 0:v -map 1:a -c:v copy -c:a aac -shortest scored_stills.mp4
+# 6. And/or mix the music UNDER the scream compilation (35% volume)
+ffmpeg -i compilation.mp4 -i soundtrack.wav -filter_complex "[1:a]volume=0.35[m];[0:a][m]amix=inputs=2:duration=first:normalize=0" -c:v copy scored_compilation.mp4
 ```
 
-**Bonus ffmpeg recipes:**
+**Bonus ffmpeg recipe** — split a huge video into 10-min chunks (no re-encode, keyframe-aligned):
 
 ```powershell
-# Ken Burns slow-zoom slideshow instead of static stills
-ffmpeg -framerate 1/5 -pattern_type glob -i "stills/frame_*.jpg" -vf "zoompan=z='min(zoom+0.0008,1.2)':d=150:s=1920x1080:fps=30,format=yuv420p" -c:v libx264 stills_reel_zoom.mp4
-
-# If your ffmpeg build lacks glob support (PowerShell concat-list fallback)
-Get-ChildItem stills\frame_*.jpg | Sort-Object Name | ForEach-Object { "file '$($_.FullName.Replace('\','/'))'"; "duration 4" } | Set-Content stills\list.txt; ffmpeg -f concat -safe 0 -i stills\list.txt -vf "fps=30,format=yuv420p" -c:v libx264 stills_reel.mp4
-
-# Split a huge video into 10-min chunks (no re-encode, keyframe-aligned)
 ffmpeg -i movie.mp4 -c copy -map 0 -f segment -segment_time 600 -reset_timestamps 1 chunk_%03d.mp4
 ```
 
@@ -204,7 +239,7 @@ ffmpeg -i movie.mp4 -c copy -map 0 -f segment -segment_time 600 -reset_timestamp
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
@@ -216,13 +251,14 @@ ffmpeg -i movie.mp4 -c copy -map 0 -f segment -segment_time 600 -reset_timestamp
 | Script 2 or 3 slow | Script 2: raise `--interval` to 2.0. Script 3: keep `musicgen-small`, lower `--gen-seconds`. Or install CUDA PyTorch. |
 | MusicGen download fails mid-way | Re-run; Hugging Face resumes partial downloads. |
 | Music too repetitive | Raise `--gen-seconds` (e.g. 150) or try a new `--seed`. |
-| Music drowns the screams | Lower the `volume=0.35` value in the mix command. |
-| ffmpeg `glob` error on Windows | Use the concat-list fallback in section 5. |
-| Out-of-sync clips in compiled MP4 | Script re-encodes clips, which fixes most cases. Stubborn VFR source: `ffmpeg -i movie.mp4 -c copy -video_track_timescale 90000 fixed.mp4` first. |
+| Music drowns the screams | Lower `--audio-volume` (script 4) or the `volume=0.35` value in the mix command. |
+| Script 4 slideshow has every image twice | Your stills folder has jpg+png twins and an old assembler picked up both — script 4 dedupes automatically; check you're on the current version. |
+| Crossfade build slow / fails with hundreds of stills | `--crossfade` opens one ffmpeg input per image; for very large sets use the default concat mode (no crossfade) or `--zoom`. |
+| Out-of-sync clips in compiled MP4 | Script 1 re-encodes clips, which fixes most cases. Stubborn VFR source: `ffmpeg -i movie.mp4 -c copy -video_track_timescale 90000 fixed.mp4` first. |
 
 ---
 
-## 7. The models in 30 seconds
+## 8. The models in 30 seconds
 
 **YAMNet** (audio in) — small neural net trained on AudioSet, Google's 2M+ labeled YouTube clips. Hears 0.96 s windows, outputs confidence for 521 sound classes ("Screaming", "Whispering", "Gunshot, gunfire", "Meow"…).
 
@@ -230,4 +266,4 @@ ffmpeg -i movie.mp4 -c copy -map 0 -f segment -segment_time 600 -reset_timestamp
 
 **MusicGen** (audio out) — Meta's text-to-music transformer trained on 20k hours of licensed music. Describe a vibe, get a stereo-quality score, ~50 audio tokens per second of music.
 
-All three are free, open, cached locally after first download, and never send your files anywhere.
+All three are free, open, cached locally after first download, and never send your files anywhere. Script 4 is model-free — just ffmpeg craftsmanship.
