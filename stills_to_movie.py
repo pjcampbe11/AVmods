@@ -151,6 +151,17 @@ def main():
           f"{args.duration}s each)")
 
     if args.crossfade > 0:
+        # Windows caps process command lines at ~32K chars; crossfade mode
+        # puts every image on the command line. Estimate and fall back.
+        est = sum(len(i) + 45 for i in imgs) + 85 * n + 3000
+        if est > 28000:
+            print(f"WARNING: {n} stills is too many for --crossfade "
+                  "(Windows command-line limit). Falling back to concat "
+                  "mode (hard cuts). Use --zoom for motion, or reduce the "
+                  "still count to keep crossfades.")
+            args.crossfade = 0.0
+
+    if args.crossfade > 0:
         # one input per image, chained xfade transitions
         f = min(args.crossfade, args.duration / 2)
         video_dur = n * args.duration - (n - 1) * f
