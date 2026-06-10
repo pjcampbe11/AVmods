@@ -231,6 +231,32 @@ ffmpeg -i compilation.mp4 -i soundtrack.wav -filter_complex "[1:a]volume=0.35[m]
 # 7. One-liner: steps 1-6 as a single fail-fast chain (PowerShell 7), real-world example:
 py -3.10 clip_audio_events.py "Obsession.2026.mp4" -o Obsession.2026.Compilation.mp4 --keywords scream yell shout crying --threshold 0.45 --pad 0.5 && py -3.10 extract_visual_events.py "Obsession.2026.mp4" -o Obsession.2026.Stills --top 40 --size 3840x2160 --words disturbing graphic "brutally violent" gross disgusting horrifying terrifying creepy bloody gruesome && py -3.10 stills_to_movie.py Obsession.2026.Stills -o Obsession.2026.Stills_Reel.mp4 --crossfade 1.0 --size 3840x2160 && py -3.10 make_soundtrack.py Obsession.2026.Compilation.mp4 Obsession.2026.Stills_Reel.mp4 --keywords disturbing horrifying creepy -o Obsession.2026.Soundtrack.wav && py -3.10 stills_to_movie.py Obsession.2026.Stills -o Obsession.2026.Scored_Stills.mp4 --crossfade 1.0 --size 3840x2160 --audio Obsession.2026.Soundtrack.wav && ffmpeg -i Obsession.2026.Compilation.mp4 -i Obsession.2026.Soundtrack.wav -filter_complex "[1:a]volume=0.35[m];[0:a][m]amix=inputs=2:duration=first:normalize=0" -c:v copy Obsession.2026.Scored_Compilation.mp4 && Write-Host "PIPELINE COMPLETE" -ForegroundColor Green
 
+# 8. Chunk it up 
+
+# Keyword sets — one per chunk, varied so each pass surfaces a different mood
+$keywordSets = @(
+    'disturbing graphic "brutally violent" gross disgusting horrifying terrifying creepy bloody gruesome',
+    'eerie unsettling shadowy menacing sinister ominous dreadful haunting chilling',
+    'bloody gore visceral graphic wound mutilation grisly gruesome "brutally violent"',
+    'terrifying shocking horrifying frightening nightmarish ghastly macabre disturbing',
+    'creepy uncanny distorted grotesque deformed monstrous unnatural disturbing',
+    'tense suspenseful frantic "violent struggle" attack aggressive brutal panic',
+    'dark gloomy claustrophobic isolated abandoned decayed rotting bleak',
+    'screaming terror fear anguish desperate distress horrified panicked',
+    '"blood splatter" graphic death corpse gruesome horrifying gross disgusting',
+    'obsessive intense staring stalking menacing predatory unsettling creepy',
+    'climax explosive chaotic shocking graphic bloody "brutally violent" horrifying'
+)
+
+for ($i = 0; $i -le 10; $i++) {
+    $chunk  = "chunk_{0:D3}.mp4" -f $i
+    $outDir = "Obsession.2026.Stills\chunk_{0:D3}" -f $i
+    $words  = $keywordSets[$i]
+
+    Write-Host "=== Processing $chunk ===" -ForegroundColor Cyan
+    Invoke-Expression "py -3.10 extract_visual_events.py `"$chunk`" -o `"$outDir`" --top 40 --size 3840x2160 --words $words"
+}
+
 ```
 
 **Bonus ffmpeg recipe** — split a huge video into 10-min chunks (no re-encode, keyframe-aligned):
