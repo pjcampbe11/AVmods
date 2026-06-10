@@ -328,4 +328,4 @@ The sound is heavy in the most literal sense: over 80% of the track's energy liv
 
 **Specs:** stereo WAV · 44.1 kHz / 16-bit · 3:10 · mono-compatible image. Best experienced on headphones or a system with a subwoofer — phone speakers physically can't reproduce most of what's down there.
 
-![ObsessionRift waveform and spectrogram](images/ObsessionRift_analysis.png)
+![ObsessionRift waveform and spectrogram](ObsessionRift_analysis.png)
