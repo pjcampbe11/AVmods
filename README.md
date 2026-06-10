@@ -302,7 +302,7 @@ All three are free, open, cached locally after first download, and never send yo
 
 ---
 
-# OBSESSION (2026) — Fan Edit Project
+## 9. OBSESSION (2026) — Fan Edit Project
 
 ## About the Film
 
@@ -314,11 +314,11 @@ Barker, a 26-year-old YouTuber-turned-filmmaker, shot it in about 20 days on a ~
 
 **Sources:** [IMDb](https://www.imdb.com/title/tt37287335/) · [NBC News](https://www.nbcnews.com/pop-culture/pop-culture-news/obsession-curry-barker-box-office-hit-focus-features-rcna346824) · [IndieWire](https://www.indiewire.com/criticism/movies/obsession-review-curry-baker-1235149428/) · [RogerEbert.com](https://www.rogerebert.com/reviews/obsession-curry-barker-movie-review-2026)
 
-## How It Was Made — AV-EVENT-MINER
+## Obsession ~ How It Was Made — AV-EVENT-MINER
 
 All video processing was done with **[AV-EVENT-MINER](https://github.com/pjcampbe11/AVmods-Local_Video-_Event_Mining_Soundtrack_Toolkit/tree/main)**: ML-based event mining for local video — four Python scripts that turn any local video file (MP4, MKV, AVI, MOV — anything ffmpeg reads) into new creative material: YAMNet audio-event detection, CLIP zero-shot frame retrieval, MusicGen soundtrack generation, and ffmpeg assembly. Runs **100% offline** on CPU (GPU auto-detected and used if present) — no uploads, no API keys, no cloud fees.
 
-## The Soundtrack — ObsessionRift
+### The Soundtrack — ObsessionRift
 
 *A dark, bass-driven electronic track built to sit under horror edits. Generated with [ACE Studio](https://acestudio.ai).*
 
