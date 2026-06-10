@@ -227,6 +227,7 @@ py -3.10 stills_to_movie.py stills -o scored_stills.mp4 --crossfade 1.0 --audio 
 
 # 6. And/or mix the music UNDER the scream compilation (35% volume)
 ffmpeg -i compilation.mp4 -i soundtrack.wav -filter_complex "[1:a]volume=0.35[m];[0:a][m]amix=inputs=2:duration=first:normalize=0" -c:v copy scored_compilation.mp4
+# 7. One-liner: py -3.10 clip_audio_events.py "Obsession.2026.mp4" -o Obsession.2026.Compilation.mp4 --keywords scream yell shout crying --threshold 0.45 --pad 0.5 && py -3.10 extract_visual_events.py "Obsession.2026.mp4" -o Obsession.2026.Stills --top 40 --size 3840x2160 --words disturbing graphic "brutally violent" gross disgusting horrifying terrifying creepy bloody gruesome && py -3.10 stills_to_movie.py Obsession.2026.Stills -o Obsession.2026.Stills_Reel.mp4 --crossfade 1.0 --size 3840x2160 && py -3.10 make_soundtrack.py Obsession.2026.Compilation.mp4 Obsession.2026.Stills_Reel.mp4 --keywords disturbing horrifying creepy -o Obsession.2026.Soundtrack.wav && py -3.10 stills_to_movie.py Obsession.2026.Stills -o Obsession.2026.Scored_Stills.mp4 --crossfade 1.0 --size 3840x2160 --audio Obsession.2026.Soundtrack.wav && ffmpeg -i Obsession.2026.Compilation.mp4 -i Obsession.2026.Soundtrack.wav -filter_complex "[1:a]volume=0.35[m];[0:a][m]amix=inputs=2:duration=first:normalize=0" -c:v copy Obsession.2026.Scored_Compilation.mp4 && Write-Host "PIPELINE COMPLETE" -ForegroundColor Green
 ```
 
 **Bonus ffmpeg recipe** — split a huge video into 10-min chunks (no re-encode, keyframe-aligned):
