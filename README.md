@@ -1,13 +1,14 @@
-# Local Video Event Mining Toolkit
+# AVmods — Local Video Event Mining & Soundtrack Toolkit
 
-Two Python scripts that scan local video files (MP4, MKV, AVI, MOV — anything ffmpeg can read) for moments matching a description, then export the results. Everything runs **100% locally** on your machine — no uploads, no API keys, no cloud, no per-minute fees. Both scripts work fine on CPU; a 2-hour movie scans in minutes.
+Three Python scripts that turn any local video file (MP4, MKV, AVI, MOV — anything ffmpeg reads) into new creative material, **100% locally**: no uploads, no API keys, no cloud fees. Everything runs on CPU (GPU auto-detected and used if present).
 
-| Script | Senses | Input | Output |
+| # | Script | Senses / Creates | Output |
 |---|---|---|---|
-| `clip_audio_events.py` | **Hearing** — screams, crying, whispers, gunshots, 521 sound classes (YAMNet/AudioSet) | any video file | one compiled MP4 of matching clips + CSV detection log |
-| `extract_visual_events.py` | **Sight** — any phrase you can type: "disturbing", "blood splatter", "foggy forest" (CLIP zero-shot) | any video file | high-res JPG + PNG stills (screen-filling, letterboxed) + CSV score log |
+| 1 | `clip_audio_events.py` | **Hearing** — screams, crying, whispers, gunshots… 521 sound classes (YAMNet/AudioSet) | one compiled MP4 of matching clips + detection CSV |
+| 2 | `extract_visual_events.py` | **Sight** — any phrase you can type: "disturbing", "blood splatter", "foggy forest" (CLIP zero-shot) | high-res screen-filling JPG + PNG stills + score CSV |
+| 3 | `make_soundtrack.py` | **Composing** — AI music matched to your keywords' vibe (Meta MusicGen) | WAV music bed, exact duration of your longest video |
 
-They pair naturally: the audio script finds *when something sounds bad*, the visual script finds *when something looks bad*, and ffmpeg glues the results into new videos.
+Together they form a pipeline: **mine the sounds → mine the visuals → score the result** — a movie goes in, a fully AI-curated, AI-scored highlight reel comes out.
 
 ---
 
@@ -15,210 +16,218 @@ They pair naturally: the audio script finds *when something sounds bad*, the vis
 
 ### 1.1 ffmpeg
 
-Check if you already have it:
-
 ```powershell
-ffmpeg -version
-```
-
-If not, install with any one of these:
-
-```powershell
+ffmpeg -version    # already installed? skip ahead
 winget install Gyan.FFmpeg          # recommended
-# or
-choco install ffmpeg                # if you use Chocolatey
-# or
-scoop install ffmpeg                # if you use Scoop
+# or: choco install ffmpeg   /   scoop install ffmpeg
 ```
 
-Manual alternative: download the "full" build from <https://www.gyan.dev/ffmpeg/builds/>, extract, and add the `bin` folder to your PATH. Open a **new** PowerShell window afterward and re-run `ffmpeg -version`.
-
-> Any ffmpeg from ~4.x onward works. Both scripts call `ffmpeg` by name, so it must be on PATH.
+Manual: grab the "full" build from <https://www.gyan.dev/ffmpeg/builds/>, extract, add the `bin` folder to PATH. Open a **new** PowerShell window and re-check. Any ffmpeg ≥ 4.x works; scripts 1 and 3 also use `ffprobe`, which ships in the same build.
 
 ### 1.2 Python
 
-You need Python 3.9–3.12 (3.10/3.11 recommended). Check what the Windows launcher sees:
+Python 3.9–3.12 (3.10/3.11 recommended). Check: `py --list`. If missing: `winget install Python.Python.3.11`.
 
-```powershell
-py --list
-```
-
-If nothing suitable: `winget install Python.Python.3.11`, then open a new window.
-
-> **Tip:** on Windows, always invoke a specific interpreter with `py -3.10` (or `py -3.11`). Plain `pip`/`python` can silently point at a different install — the #1 cause of "module not found" errors right after a successful install.
+> **Golden rule on Windows:** always install and run with an explicit interpreter — `py -3.10 -m pip install …` and `py -3.10 script.py`. Plain `pip`/`python` can silently point at a different Python install; that mismatch is the #1 cause of `ModuleNotFoundError` right after a "successful" install.
 
 ### 1.3 Python packages
 
-For the **audio** script:
-
 ```powershell
+# Script 1 (audio events)
 py -3.10 -m pip install tensorflow tensorflow-hub numpy soundfile
+
+# Script 2 (visual stills)
+py -3.10 -m pip install torch torchvision open_clip_torch opencv-python pillow
+
+# Script 3 (soundtrack) — reuses torch from above
+py -3.10 -m pip install transformers scipy
 ```
 
-For the **visual** script:
+NVIDIA GPU? Install the CUDA build of PyTorch (<https://pytorch.org/get-started/locally/>) — scripts 2 and 3 auto-detect it and run many times faster.
+
+**About pip "dependency conflict" errors:** if your Python has other projects installed (langchain, pandas, etc.), pip may print red `ERROR: ... requires numpy<2, but you have numpy 2.x` lines. As long as it ends with `Successfully installed …`, these scripts are fine — the warnings concern those *other* packages. The clean long-term fix is one virtual environment per project:
 
 ```powershell
-py -3.10 -m pip install torch torchvision open_clip_torch opencv-python pillow
+py -3.10 -m venv C:\venvs\avmods
+C:\venvs\avmods\Scripts\Activate.ps1
+pip install tensorflow tensorflow-hub soundfile torch torchvision open_clip_torch opencv-python pillow transformers scipy numpy
 ```
-
-(If you have an NVIDIA GPU and want faster visual scans, install the CUDA build of PyTorch instead — see <https://pytorch.org/get-started/locally/> — the script auto-detects it.)
 
 ### 1.4 One-liner sanity check
 
 ```powershell
-ffmpeg -version | Select-Object -First 1; py -3.10 --version; py -3.10 -c "import tensorflow, tensorflow_hub, soundfile; print('audio deps OK')"; py -3.10 -c "import torch, open_clip, cv2, PIL; print('visual deps OK')"
+ffmpeg -version | Select-Object -First 1; py -3.10 --version; py -3.10 -c "import tensorflow, tensorflow_hub, soundfile; print('audio deps OK')"; py -3.10 -c "import torch, open_clip, cv2, PIL; print('visual deps OK')"; py -3.10 -c "import transformers, scipy; print('music deps OK')"
 ```
 
-All four lines printing = ready. (The TensorFlow import takes 10–30 s and prints oneDNN/deprecation warnings — normal.)
+Five lines printing = fully ready. (TensorFlow's import takes 10–30 s and prints oneDNN warnings — normal.)
 
-### 1.5 First-run model downloads
+### 1.5 First-run model downloads (then fully offline)
 
-Each model downloads once, then is cached locally:
-
-- YAMNet (audio): ~17 MB, cached in `%TEMP%\tfhub_modules`
-- CLIP ViT-B-32 (visual): ~340 MB, cached in `%USERPROFILE%\.cache`
-
-After the first run, both scripts work fully offline.
+| Model | Used by | Size | Cache location |
+|---|---|---|---|
+| YAMNet | script 1 | ~17 MB | `%TEMP%\tfhub_modules` |
+| CLIP ViT-B-32 | script 2 | ~340 MB | `%USERPROFILE%\.cache` |
+| MusicGen small | script 3 | ~2 GB | `%USERPROFILE%\.cache\huggingface` |
 
 ---
 
 ## 2. `clip_audio_events.py` — sound-event clip compiler
 
-**What it does:** extracts the audio track, slides Google's YAMNet model over it in ~1-second windows, flags every window where a target sound class (matched by keyword against AudioSet's 521 class names) exceeds a confidence threshold, merges nearby hits into padded segments, cuts each segment from the original video, and concatenates them into one MP4. Also writes `<output>_detections.csv` with every hit (timestamp, class, confidence).
-
-### Basic use
+Extracts the audio track, slides YAMNet over it in ~1 s windows, flags windows where a target sound class exceeds the confidence threshold, merges nearby hits into padded segments, cuts them from the original video, and concatenates everything into one MP4. Also writes `<output>_detections.csv` (timestamp, class, confidence).
 
 ```powershell
 py -3.10 clip_audio_events.py "movie.mp4" -o compilation.mp4
 ```
 
-### Options
-
 | Flag | Default | Meaning |
 |---|---|---|
-| `--keywords` | scream, yell, shout, crying, whisper, wail, moan, groan, gasp, … | substrings matched against YAMNet class names |
+| `--keywords` | scream, yell, shout, crying, whisper, wail, moan, groan, gasp… | substrings matched against YAMNet's 521 class names |
 | `--threshold` | 0.25 | confidence 0–1; lower = more clips |
-| `--pad` | 1.5 | seconds of context kept before/after each event |
+| `--pad` | 1.5 | seconds of context before/after each event |
 | `--max-gap` | 2.0 | detections closer than this merge into one clip |
-| `--min-len` | 1.0 | discard segments shorter than this |
-| `--list-classes` | — | print all 521 detectable sound classes and exit |
+| `--min-len` | 1.0 | discard shorter segments |
+| `--list-classes` | — | print all 521 sound classes and exit |
 
-### Tuning workflow
-
-1. Run once with defaults.
-2. Open `compilation_detections.csv` — see what was detected, when, and at what confidence.
-3. Too much junk → raise `--threshold` to 0.35. Missing quiet moments (whispers score low) → drop to 0.15.
-4. Clips feel chopped → raise `--pad` to 3.
+**Tuning:** run once → open the CSV → too much junk? raise threshold to 0.35; missing whispers (they score low)? drop to 0.15; clips feel chopped? `--pad 3`.
 
 ### Creative uses
 
-- **Horror jump-scare supercut** — the original use case: `--keywords scream shriek` and you have a trailer-ready scare reel.
-- **Find every gunshot or explosion** in an action movie: `--keywords gunshot explosion artillery` (yes, those are real AudioSet classes — run `--list-classes` to browse all 521).
-- **Laugh track extractor**: `--keywords laughter giggle chuckle` against a sitcom rip → instant blooper-reel energy.
-- **Pet cameo finder**: `--keywords bark meow howl` against home videos → compilation of every moment your animal interrupted.
-- **Music-only skim**: `--keywords music singing choir` with `--threshold 0.5` pulls just the musical numbers out of a long recording.
-- **Baby-monitor / CCTV triage**: point it at an 8-hour overnight recording with `--keywords crying glass alarm` and review 90 seconds instead of 8 hours.
-- **Sports highlights without watching**: `--keywords cheering applause crowd` on a full match recording → the crowd tells you where the goals are.
-- **Silence inverse**: run with broad keywords and a low threshold, then use the CSV to find the *gaps* — the quiet stretches — for ambient/atmosphere sampling.
+- **Horror jump-scare supercut** — `--keywords scream shriek` → trailer-ready scare reel.
+- **Action audit** — `--keywords gunshot explosion artillery` (real AudioSet classes; browse with `--list-classes`).
+- **Laugh-track extractor** — `--keywords laughter giggle chuckle` on a sitcom → instant blooper energy.
+- **Pet cameo finder** — `--keywords bark meow howl` on home videos.
+- **Music-only skim** — `--keywords music singing choir --threshold 0.5` pulls musical numbers from long recordings.
+- **CCTV/baby-monitor triage** — `--keywords crying glass alarm` on an 8-hour overnight file → review 90 seconds instead of 8 hours.
+- **Sports highlights blind** — `--keywords cheering applause crowd`: the crowd tells you where the goals are.
 
 ---
 
 ## 3. `extract_visual_events.py` — description-matched still extractor
 
-**What it does:** samples one frame per second (configurable), scores each against your descriptive words using CLIP (a model that understands arbitrary English phrases — no fixed class list), suppresses near-duplicates with a minimum time gap, then re-grabs each winning timestamp from the original file at full quality. Each pick is exported as both a max-quality `.jpg` and a lossless `.png`, scaled and letterboxed to exactly your target resolution (default 1920×1080) so they fill the screen cleanly in a video. Writes `_scores.csv` with every sampled frame's score.
-
-### Basic use
+Samples one frame per second, scores each against your words using CLIP (understands arbitrary English — no fixed class list), suppresses near-duplicates via a minimum time gap, then re-grabs each winner from the original file at full quality. Exports max-quality `.jpg` + lossless `.png`, scaled and letterboxed to exactly your target resolution so they fill the screen in a video. Writes `_scores.csv` for every sampled frame.
 
 ```powershell
 py -3.10 extract_visual_events.py "movie.mp4" -o stills
 ```
 
-### Options
-
 | Flag | Default | Meaning |
 |---|---|---|
-| `--words` | disturbing, graphic, brutally violent, gross, disgusting, horrifying, terrifying, creepy, bloody, gruesome | any words/phrases — quote multi-word phrases |
-| `--interval` | 1.0 | seconds between sampled frames (0.5 = finer, slower) |
+| `--words` | disturbing, graphic, brutally violent, gross, disgusting, horrifying, terrifying, creepy, bloody, gruesome | any words/phrases; quote multi-word phrases |
+| `--interval` | 1.0 | seconds between sampled frames |
 | `--threshold` | 0.5 | match score 0–1; lower = more frames |
 | `--min-gap` | 5.0 | min seconds between exported stills |
 | `--top` | 0 (all) | keep only the N best frames |
 | `--size` | 1920x1080 | output resolution; `3840x2160` for 4K |
-| `-o` | stills | output folder |
 
-Filenames embed order, timestamp, and matched word — `frame_0007_t01234.50_horrifying.jpg` — so they sort chronologically and you can trace every still back to its moment in the film.
+Filenames embed order + timestamp + matched word (`frame_0007_t01234.50_horrifying.jpg`) so they sort chronologically and trace back to the exact movie moment.
 
-### Tuning workflow
-
-Because CLIP scores are *relative* (your words vs. built-in neutral prompts), the right threshold varies by movie. Run once, open `_scores.csv`, sort by score, and see where the real matches separate from the noise. `--top 40` is often easier than threshold-hunting: "just give me the 40 most horrifying frames."
+**Tuning:** CLIP scores are relative, so the right threshold varies per film. Often easier: skip threshold-hunting and use `--top 40` — "just give me the 40 most horrifying frames."
 
 ### Creative uses
 
-- **Horror poster hunting** — the original use case: pull the 30 most disturbing frames at 4K (`--top 30 --size 3840x2160`) for thumbnails, posters, or a creepy title sequence.
-- **Anything you can phrase, you can find.** CLIP isn't limited to scary: `--words "neon city at night" "rain on a window" "foggy forest"` turns any film into a mood-board generator.
-- **Cinematography study**: `--words "wide landscape shot" "extreme close-up of a face" "silhouette against light"` to extract a director's signature compositions.
-- **Color-palette scenes**: `--words "scene bathed in red light" "cold blue scene"` — works surprisingly well for grading reference.
-- **Family-archive face hunting**: `--words "a child blowing out birthday candles" "people hugging"` against old home videos.
-- **Screenshot dataset building**: `--words "car" "dog" "computer screen"` with `--threshold 0.4 --min-gap 2` to mass-harvest labeled stills from footage.
-- **Desktop wallpaper farm**: `--top 20 --size 3840x2160` with scenic words against a nature documentary.
-- **Pair with the audio script**: run both, then cross-reference the two CSVs — moments that score high in *both* (sounds horrifying AND looks horrifying) are the film's true peaks. The timestamps line up because both are seconds-from-start.
+- **Poster/thumbnail hunting** — `--top 30 --size 3840x2160` for the 30 most disturbing frames at 4K.
+- **Mood-board generator** — `--words "neon city at night" "rain on a window" "foggy forest"`: anything you can phrase, you can find.
+- **Cinematography study** — `--words "wide landscape shot" "extreme close-up of a face" "silhouette against light"` extracts a director's signature compositions.
+- **Color-grading reference** — `--words "scene bathed in red light" "cold blue scene"`.
+- **Family-archive search** — `--words "a child blowing out birthday candles" "people hugging"` on old home videos.
+- **Dataset harvesting** — `--words car dog "computer screen" --threshold 0.4 --min-gap 2` mass-collects labeled stills.
+- **Wallpaper farm** — scenic words + `--top 20 --size 3840x2160` against a nature documentary.
 
 ---
 
-## 4. Turning stills into video with ffmpeg
+## 4. `make_soundtrack.py` — keyword-matched AI music bed
 
-The stills are pre-sized and letterboxed, so assembly is trivial.
-
-**Simple slideshow (4 s per image, 1080p):**
+Measures your videos with ffprobe and targets the **longest** duration. Weaves your keywords into a music prompt (or take full control with `--prompt`), generates music with Meta's MusicGen in 30 s chunks, equal-power-crossfades them into a seamless bed, loops to fill the target, trims to the exact second, fades in/out, normalizes, and writes `soundtrack.wav` (32 kHz). Finishes by printing two ready-to-paste ffmpeg mix commands.
 
 ```powershell
+py -3.10 make_soundtrack.py compilation.mp4 stills_reel.mp4 --keywords disturbing horrifying creepy
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `videos` | — | one or more files; target duration = longest |
+| `--keywords` | disturbing, horrifying, creepy, tense, eerie | vibe words woven into the prompt |
+| `--prompt` | (template) | full custom prompt, overrides keywords |
+| `--model` | facebook/musicgen-small | `-medium`/`-large` = better music, slower, bigger download |
+| `--gen-seconds` | 90 | unique material before looping; higher = less repetition |
+| `--seed` | 42 | change for a completely different take |
+| `-o` | soundtrack.wav | output file |
+
+**Speed reality check:** on CPU each 30 s chunk takes ~2–5 min with `musicgen-small`. That's why the script generates 90 s of unique material and loops it for long targets. GPU makes it near-instant.
+
+### Creative uses
+
+- **Score your own supercut** — the intended pipeline (see section 5).
+- **Re-score a scene** — feed any clip with `--prompt "upbeat 80s synthwave"` and watch a horror scene become a music video.
+- **Ambient sleep/focus beds** — `--prompt "calm ambient pads, slow, warm, no percussion" --gen-seconds 120` against any long video gives an exact-length bed.
+- **Trailer mockups** — `--prompt "epic trailer percussion, braams, rising tension"`.
+- **A/B takes** — same command, different `--seed`, pick the best take.
+
+---
+
+## 5. The full pipeline — movie in, scored nightmare reel out
+
+```powershell
+# 1. Mine the audio: every scream/cry/whisper becomes a clip compilation
+py -3.10 clip_audio_events.py "movie.mp4" -o compilation.mp4
+
+# 2. Mine the visuals: the most horrifying frames as 1080p stills
+py -3.10 extract_visual_events.py "movie.mp4" -o stills --top 40
+
+# 3. Stills -> slideshow (4 s per image)
 ffmpeg -framerate 1/4 -pattern_type glob -i "stills/frame_*.jpg" -c:v libx264 -r 30 -pix_fmt yuv420p stills_reel.mp4
+
+# 4. Compose a soundtrack as long as the longer video
+py -3.10 make_soundtrack.py compilation.mp4 stills_reel.mp4 --keywords disturbing horrifying creepy
+
+# 5a. Mix music UNDER the screams (35% volume)
+ffmpeg -i compilation.mp4 -i soundtrack.wav -filter_complex "[1:a]volume=0.35[m];[0:a][m]amix=inputs=2:duration=first:normalize=0" -c:v copy scored_compilation.mp4
+
+# 5b. Or set the silent stills reel TO the music
+ffmpeg -i stills_reel.mp4 -i soundtrack.wav -map 0:v -map 1:a -c:v copy -c:a aac -shortest scored_stills.mp4
 ```
 
-If your Windows ffmpeg build lacks glob support, build a concat list instead:
+**Bonus ffmpeg recipes:**
 
 ```powershell
-Get-ChildItem stills\frame_*.jpg | Sort-Object Name | ForEach-Object { "file '$($_.FullName.Replace('\','/'))'"; "duration 4" } | Set-Content stills\list.txt; ffmpeg -f concat -safe 0 -i stills\list.txt -vf "fps=30,format=yuv420p" -c:v libx264 stills_reel.mp4
-```
-
-**Slideshow with slow Ken Burns zoom (cinematic):**
-
-```powershell
+# Ken Burns slow-zoom slideshow instead of static stills
 ffmpeg -framerate 1/5 -pattern_type glob -i "stills/frame_*.jpg" -vf "zoompan=z='min(zoom+0.0008,1.2)':d=150:s=1920x1080:fps=30,format=yuv420p" -c:v libx264 stills_reel_zoom.mp4
-```
 
-**Stills reel + the audio compilation's soundtrack** (full circle — scary images set to the movie's own screams):
+# If your ffmpeg build lacks glob support (PowerShell concat-list fallback)
+Get-ChildItem stills\frame_*.jpg | Sort-Object Name | ForEach-Object { "file '$($_.FullName.Replace('\','/'))'"; "duration 4" } | Set-Content stills\list.txt; ffmpeg -f concat -safe 0 -i stills\list.txt -vf "fps=30,format=yuv420p" -c:v libx264 stills_reel.mp4
 
-```powershell
-ffmpeg -i stills_reel.mp4 -i compilation.mp4 -map 0:v -map 1:a -c:v copy -c:a aac -shortest final_nightmare_fuel.mp4
-```
-
-**Split a large video into chunks** (general utility, keyframe-aligned, no re-encode):
-
-```powershell
+# Split a huge video into 10-min chunks (no re-encode, keyframe-aligned)
 ffmpeg -i movie.mp4 -c copy -map 0 -f segment -segment_time 600 -reset_timestamps 1 chunk_%03d.mp4
 ```
 
+**Cross-referencing trick:** scripts 1 and 2 both log timestamps as seconds-from-start. Moments that score high in *both* CSVs — sounds horrifying AND looks horrifying — are the film's true peaks. Sort both by score, intersect the timestamps (±2 s), and you've found the scenes worth keeping.
+
 ---
 
-## 5. Troubleshooting
+## 6. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| `Fatal error in launcher: Unable to create process` from `pip` | A stale Python's `Scripts` folder is on PATH. Bypass with `py -3.10 -m pip …`, and/or remove dead PATH entries. |
-| `ModuleNotFoundError` right after a successful install | Packages went into a different Python. Always install and run with the same `py -3.X`. |
-| TensorFlow oneDNN / deprecation warnings | Normal noise. Silence with `$env:TF_ENABLE_ONEDNN_OPTS=0` if it bothers you. |
-| `No segments found` / `No frames above threshold` | Lower `--threshold`; check the CSV to see actual score ranges. |
-| Audio script slow | It's mostly ffmpeg extraction + CPU inference; expect a few minutes for a 2-hour film. |
-| Visual script slow | Raise `--interval` to 2.0 (halves the work), or install CUDA PyTorch if you have an NVIDIA GPU. |
-| Out-of-sync clips in the compiled MP4 | The script re-encodes each clip, which normalizes most sync issues. If you still see drift (variable-frame-rate source), remux first: `ffmpeg -i movie.mp4 -c copy -video_track_timescale 90000 fixed.mp4`. |
-| ffmpeg `glob` pattern error on Windows | Use the PowerShell concat-list one-liner in section 4. |
+| `Fatal error in launcher: Unable to create process` from `pip` | A dead Python's `Scripts` folder is on PATH. Bypass with `py -3.10 -m pip …`; remove stale PATH entries when convenient. |
+| `ModuleNotFoundError` right after a successful install | Packages went into a different Python. Install and run with the *same* `py -3.X`. |
+| pip prints red `requires numpy<2 … incompatible` errors | Warnings about *other* packages in that Python; these scripts are unaffected. Use a venv per project if those other tools matter. |
+| TensorFlow oneDNN / deprecation warnings on import | Normal. Silence with `$env:TF_ENABLE_ONEDNN_OPTS=0`. |
+| `No segments found` / `No frames above threshold` | Lower `--threshold`; open the CSV to see the real score distribution. |
+| Script 2 or 3 slow | Script 2: raise `--interval` to 2.0. Script 3: keep `musicgen-small`, lower `--gen-seconds`. Or install CUDA PyTorch. |
+| MusicGen download fails mid-way | Re-run; Hugging Face resumes partial downloads. |
+| Music too repetitive | Raise `--gen-seconds` (e.g. 150) or try a new `--seed`. |
+| Music drowns the screams | Lower the `volume=0.35` value in the mix command. |
+| ffmpeg `glob` error on Windows | Use the concat-list fallback in section 5. |
+| Out-of-sync clips in compiled MP4 | Script re-encodes clips, which fixes most cases. Stubborn VFR source: `ffmpeg -i movie.mp4 -c copy -video_track_timescale 90000 fixed.mp4` first. |
 
 ---
 
-## 6. How the models work (30-second version)
+## 7. The models in 30 seconds
 
-**YAMNet** (audio) is a small neural net trained on AudioSet, Google's dataset of 2+ million labeled YouTube clips. It hears 0.96-second windows and outputs a confidence for each of 521 sound classes — "Screaming", "Whispering", "Crying, sobbing", "Gunshot, gunfire", "Meow"… You pick classes by keyword; the script does the rest.
+**YAMNet** (audio in) — small neural net trained on AudioSet, Google's 2M+ labeled YouTube clips. Hears 0.96 s windows, outputs confidence for 521 sound classes ("Screaming", "Whispering", "Gunshot, gunfire", "Meow"…).
 
-**CLIP** (visual) was trained by OpenAI on 400 million image–caption pairs to place images and text in the same mathematical space. That means it can score how well *any English phrase* matches *any image* — no retraining, no fixed list. The script compares each frame against your words and against built-in "boring/neutral scene" anchors, and keeps frames where your words win.
+**CLIP** (vision in) — trained by OpenAI on 400M image–caption pairs to place images and text in one shared space, so it can score how well *any English phrase* matches *any frame* — no retraining, no fixed list.
 
-Both are free, open, and run entirely on your machine.
+**MusicGen** (audio out) — Meta's text-to-music transformer trained on 20k hours of licensed music. Describe a vibe, get a stereo-quality score, ~50 audio tokens per second of music.
+
+All three are free, open, cached locally after first download, and never send your files anywhere.
